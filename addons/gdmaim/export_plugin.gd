@@ -29,11 +29,11 @@ var _src_obfuscators : Dictionary
 var _res_obfuscators : Dictionary
 var _inject_autoload : String
 var _exported_script_count : int
+var _exclude_paths : PackedStringArray
 var _rgx : RegEx = null
 var _godot_files : GodotFiles
 var _compiler
 var _compress_mode : int
-
 
 func _get_name() -> String:
 	return "gdmaim"
@@ -48,6 +48,15 @@ func _export_begin(features : PackedStringArray, is_debug : bool, path : String,
 	if !_enabled:
 		return
 	
+	_exclude_paths.clear()
+	if !settings.obfuscate_exclude.strip_edges().is_empty():
+		for exclude_path in settings.obfuscate_exclude.strip_edges().split(","):
+			exclude_path = exclude_path.strip_edges()
+			if !exclude_path.is_empty():
+				if !exclude_path.begins_with("res://"):
+					exclude_path = "res://" + exclude_path
+				_exclude_paths.push_back(exclude_path)
+
 	_convert_text_resources_to_binary = ProjectSettings.get_setting("editor/export/convert_text_resources_to_binary", false)
 	if _convert_text_resources_to_binary:
 		#push_warning("GDMaim: The project setting 'editor/export/convert_text_resources_to_binary' being enabled might significantly affect the time it takes to export")
@@ -121,7 +130,7 @@ func _export_begin(features : PackedStringArray, is_debug : bool, path : String,
 		if settings.export_mode != settings.GDScriptExportMode.TEXT and !ClassDB.class_exists("BytecodeCompiler"):
 			printerr("GDMaim - Failed to locate GDBC! Cannot compile scripts to bytecode!")
 		print("GDMaim - Exporting scripts as plain text.")
-	
+
 	# Remove gdbc from extension list
 	var extension_list_src := FileAccess.get_file_as_string(GODOT_EXTENSION_LIST_PATH)
 	var extension_list : String
@@ -129,7 +138,7 @@ func _export_begin(features : PackedStringArray, is_debug : bool, path : String,
 		if not line.ends_with("gdbc.gdextension"):
 			extension_list += line + "\n"
 	_godot_files.edit(GODOT_EXTENSION_LIST_PATH, extension_list_src.to_utf8_buffer(), extension_list.to_utf8_buffer())
-	
+
 	# Modify class cache
 	var class_cache := ConfigFile.new()
 	var class_cache_src : PackedByteArray = FileAccess.get_file_as_bytes(GODOT_CLASS_CACHE_PATH)
@@ -142,7 +151,7 @@ func _export_begin(features : PackedStringArray, is_debug : bool, path : String,
 			class_data.base = StringName(_class_symbols[class_data.base].get_name())
 	class_cache.set_value("", "list", classes)
 	_godot_files.edit(GODOT_CLASS_CACHE_PATH, class_cache_src, class_cache.encode_to_text().to_utf8_buffer())
-	
+
 	# Apply changes made to Godot's internal export files
 	_godot_files.flush()
 
@@ -156,7 +165,7 @@ func _export_end() -> void:
 		return
 	
 	_write_file_str(get_script().resource_path.get_base_dir() + "/.gitignore", "cache/\nsource_maps/\nbackup/")
-	
+
 	_build_data_path(settings.source_map_path)
 	var files : PackedStringArray
 	for filepath in DirAccess.get_files_at(settings.source_map_path):
@@ -213,7 +222,7 @@ func _export_end() -> void:
 	
 	# Revert temporary changes made to Godot files
 	_godot_files.restore()
-	
+
 	_autoloads.clear()
 	_symbols = null
 	_src_obfuscators.clear()
@@ -224,7 +233,7 @@ func _export_end() -> void:
 func _export_file(path : String, type : String, features : PackedStringArray) -> void:
 	if !_enabled:
 		return
-	
+
 	var ext : String = path.get_extension()
 	if ext == "csv":
 		skip() #HACK
@@ -243,7 +252,7 @@ func _export_file(path : String, type : String, features : PackedStringArray) ->
 				#var binary_path : String = "res://.godot/exported/gdmaim/" + _generate_uuid(path)
 				#binary_path += "-" + path.get_file().replace(".tres", ".res").replace(".tscn", ".scn")
 				#add_file(binary_path, binary_data, true)
-	elif ext == "gd":
+	elif ext == "gd" and !_is_exclude(path):
 		var code : String = _obfuscate_script(path)
 		var bytes : PackedByteArray
 		if _compiler:
@@ -300,7 +309,7 @@ func _parse_script(path : String) -> void:
 		if null != r_match and r_match.strings.size() > 1:
 			source_code = r_match.strings[1]
 		file.close()
-	
+
 	if source_code.is_empty():return
 	var obfuscator := ScriptObfuscator.new(path)
 	_src_obfuscators[path] = obfuscator
@@ -316,7 +325,7 @@ func _parse_script(path : String) -> void:
 	obfuscator.parse(source_code, _symbols, _symbols.create_global_symbol(_autoloads[path]) if _autoloads.has(path) else null)
 	if obfuscator.get_class_symbol():
 		_class_symbols[obfuscator.get_class_symbol().to_string()] = obfuscator.get_class_symbol()
-	
+
 	_Logger.write("\nAbstract Syntax Tree\n" + obfuscator._ast.print_tree(-1))
 	
 	_Logger.write("\n---------- " + " Resolving symbols " + path + " ----------\n")
@@ -363,7 +372,7 @@ func _obfuscate_resource(path : String, source_data : String) -> String:
 	if _src_obfuscators.has(path):
 		code = _obfuscate_script(path)
 		_src_obfuscators.erase(path) #Resource map consumed
-	
+
 	_Logger.swap(obfuscator)
 	_Logger.write("---------- " + " Obfuscating resource " + path + " ----------\n")
 	
@@ -373,7 +382,7 @@ func _obfuscate_resource(path : String, source_data : String) -> String:
 		var data : String = obfuscator.get_data()
 		data = _rgx.sub(data, str("script/source = \"", code,"\""))
 		obfuscator.set_data(data)
-	
+
 	return obfuscator.get_data()
 
 
@@ -397,18 +406,27 @@ static func _multi_split(source : String, delimeters : String) -> PackedStringAr
 	
 	return splits
 
+func _is_exclude(path : String) -> bool:
+    for exclude_path in _exclude_paths:
+        if path.match(exclude_path):
+            return true
+    return false
 
 static func _get_files(path : String, ext : String) -> PackedStringArray:
 	var files : PackedStringArray
 	var dirs : Array[String] = [path]
 	while dirs:
 		var dir : String = dirs.pop_front()
+		if _is_exclude(dir):
+			continue
 		for sub_dir in DirAccess.get_directories_at(dir):
 			if !sub_dir.begins_with("."):
 				dirs.append(dir.path_join(sub_dir))
 		for file in DirAccess.get_files_at(dir):
 			if file.replace(".remap", "").ends_with(ext):
-				files.append(dir.path_join(file))
+				var file_path := dir.path_join(file)
+				if !_is_exclude(file_path):
+					files.append(file_path)
 	files.sort()
 	
 	return files
