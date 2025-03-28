@@ -56,6 +56,7 @@ func _export_begin(features : PackedStringArray, is_debug : bool, path : String,
 				if !exclude_path.begins_with("res://"):
 					exclude_path = "res://" + exclude_path
 				_exclude_paths.push_back(exclude_path)
+	print(_exclude_paths)
 
 	_convert_text_resources_to_binary = ProjectSettings.get_setting("editor/export/convert_text_resources_to_binary", false)
 	if _convert_text_resources_to_binary:
@@ -240,7 +241,7 @@ func _export_file(path : String, type : String, features : PackedStringArray) ->
 	elif ext == "ico":
 		skip() #HACK
 		add_file(path, FileAccess.get_file_as_bytes(path), true) #HACK
-	elif ext == "tres" or ext == "tscn":
+	elif (ext == "tres" or ext == "tscn") and !_is_exclude(path):
 		if settings.obfuscate_export_vars or ext == "tscn":
 			var data : String = _obfuscate_resource(path, FileAccess.get_file_as_string(path))
 			skip()
@@ -407,12 +408,13 @@ static func _multi_split(source : String, delimeters : String) -> PackedStringAr
 	return splits
 
 func _is_exclude(path : String) -> bool:
-    for exclude_path in _exclude_paths:
-        if path.match(exclude_path):
-            return true
-    return false
+	for exclude_path in _exclude_paths:
+		if path.match(exclude_path):
+			return true
+	return false
+	
 
-static func _get_files(path : String, ext : String) -> PackedStringArray:
+func _get_files(path : String, ext : String) -> PackedStringArray:
 	var files : PackedStringArray
 	var dirs : Array[String] = [path]
 	while dirs:

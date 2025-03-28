@@ -1,6 +1,6 @@
 [gd_scene load_steps=17 format=3 uid="uid://dqknu058384tm"]
 
-[ext_resource type="Script" path="res://addons/gdmaim/ui/source_map_viewer/source_map_viewer.gd" id="1_xfxdk"]
+[ext_resource type="Script" uid="uid://ygtl8x541r4q" path="res://addons/gdmaim/ui/source_map_viewer/source_map_viewer.gd" id="1_xfxdk"]
 [ext_resource type="PackedScene" uid="uid://crvfxjbaqfxn2" path="res://addons/gdmaim/ui/source_map_viewer/code_search.tscn" id="2_n0sd2"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6bkrx"]
@@ -221,6 +221,7 @@ layout_mode = 2
 text = "Search"
 item_count = 2
 popup/item_0/text = "Search source code...    (CTRL + F)"
+popup/item_0/id = 0
 popup/item_1/text = "Search exported code...    (CTRL + F)"
 popup/item_1/id = 1
 

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bs7ppfpdatv58"]
 
-[ext_resource type="Script" path="res://addons/gdmaim/ui/dock/setting.gd" id="1_etn3l"]
+[ext_resource type="Script" uid="uid://f7nv0lhfnbbi" path="res://addons/gdmaim/ui/dock/setting.gd" id="1_etn3l"]
 
 [node name="SpinBox" type="SpinBox"]
 anchors_preset = 6

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b0utn0ipiju8s"]
 
-[ext_resource type="Script" path="res://addons/gdmaim/ui/dock/setting.gd" id="1_qv1ja"]
+[ext_resource type="Script" uid="uid://f7nv0lhfnbbi" path="res://addons/gdmaim/ui/dock/setting.gd" id="1_qv1ja"]
 
 [node name="OptionButton" type="OptionButton"]
 anchors_preset = 6
@@ -15,6 +15,5 @@ offset_bottom = 15.5
 grow_horizontal = 0
 grow_vertical = 2
 alignment = 1
-selected = 0
 script = ExtResource("1_qv1ja")
 node_var = "selected"
